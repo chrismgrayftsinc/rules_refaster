@@ -45,6 +45,7 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.io.File;
 
 /**
  * A plugin for BlazeJavaCompiler that performs Error Prone analysis. Error Prone is a static
@@ -131,6 +132,13 @@ public final class RefasterErrorPronePlugin extends BlazeJavaCompilerPlugin {
     ImmutableList.Builder<String> epArgs = ImmutableList.<String>builder().addAll(blazeJavacopts);
     // allow javacopts that reference unknown error-prone checks
     epArgs.add("-XepIgnoreUnknownCheckNames");
+    String absoluteBaseDirectory = new File(".").getAbsolutePath();
+    for (String arg : blazeJavacopts) {
+      if (arg.startsWith("-XepPatchLocation:")) {
+        absoluteBaseDirectory = new File(arg.substring("-XepPatchLocation:".length())).getAbsolutePath();
+      }
+    }
+    epArgs.add("-XepPatchLocation:" + absoluteBaseDirectory);
     processEpOptions(epArgs.build());
   }
 

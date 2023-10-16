@@ -1,4 +1,4 @@
-workspace(package = "rules_refaster")
+workspace(name = "rules_refaster")
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 RULES_JVM_EXTERNAL_TAG = "4.4.2"
