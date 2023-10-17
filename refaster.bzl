@@ -56,14 +56,14 @@ def _refaster_runner_impl(ctx):
         "--output",
         "bazel-out/k8-fastbuild/refaster-output.jar",
     ]
-    
+
     error_prone_patch = ctx.actions.declare_file("error-prone.patch")
 
     javacopts_args = [
         "--javacopts",
         "-XDcompilePolicy=simple",
         "-XepPatchChecks:" + ",".join(ctx.attr.checks),
-        "-XepPatchLocation:" + error_prone_patch.dirname ,
+        "-XepPatchLocation:" + error_prone_patch.dirname,
         "--",
     ]
 
@@ -72,8 +72,8 @@ def _refaster_runner_impl(ctx):
 
     classpath_args = ["--classpath"] + [x.path for x in all_deps]
 
-    
-    processor_args = ["--processorpath"] + [x.path for x in ctx.attr.plugins[0][JavaInfo].plugins.processor_jars.to_list()] + ["--processors"] + ctx.attr.plugins[0][JavaInfo].plugins.processor_classes.to_list()
+    plugin_jars = [y for x in ctx.attr.plugins for y in x[JavaInfo].plugins.processor_jars.to_list()]
+    processor_args = ["--processorpath"] + [y.path for y in plugin_jars] + ["--processors"] + [y for x in ctx.attr.plugins for y in x[JavaInfo].plugins.processor_classes.to_list()]
 
     java_executable = toolchain_info.java_runtime.java_executable_exec_path
     args = java_args + ["-jar", javabuilder.files.to_list()[0].path] + bootclasspath_args + sources_args + target_label_args + javacopts_args + classpath_args + processor_args
@@ -82,25 +82,23 @@ def _refaster_runner_impl(ctx):
         command = java_executable + " $@",
         arguments = args,
         outputs = [error_prone_patch],
-        inputs = [y for x in ctx.attr.srcs for y in x.files.to_list()] + all_deps + ctx.attr.plugins[0][JavaInfo].plugins.processor_jars.to_list(), 
+        inputs = [y for x in ctx.attr.srcs for y in x.files.to_list()] + all_deps + plugin_jars,
         tools = toolchain_info.tools.to_list() + toolchain_info.java_runtime.files.to_list() + javabuilder.files.to_list(),
     )
 
     return [
         DefaultInfo(
             files = depset([error_prone_patch]),
-            runfiles = ctx.runfiles(toolchain_info.tools.to_list() + toolchain_info.java_runtime.files.to_list() + javabuilder.files.to_list() + ctx.attr.deps[0][JavaInfo].compilation_info.compilation_classpath.to_list()),
         ),
     ]
 
 _refaster_runner = rule(
     implementation = _refaster_runner_impl,
-    # executable = True,
     attrs = dict(
         deps = attr.label_list(),
         plugins = attr.label_list(),
         srcs = attr.label_list(
-            allow_files = True
+            allow_files = True,
         ),
         javabuilder = attr.label(
             allow_single_file = True,
@@ -120,14 +118,9 @@ _refaster_runner = rule(
 
 def refaster(deps, srcs, checks, name, plugins = []):
     _refaster_runner(
-        name = "refaster-runner",
+        name = name,
         deps = deps,
         plugins = plugins,
         srcs = srcs,
         checks = checks,
-    )
-    native.sh_binary(
-        name = name,
-        srcs = ["refaster-runner"],
-        visibility = ["//visibility:public"],
     )
